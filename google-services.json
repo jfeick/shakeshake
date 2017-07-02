@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "913369745403",
+    "firebase_url": "https://shakeshake-dc42c.firebaseio.com",
+    "project_id": "shakeshake-dc42c",
+    "storage_bucket": "shakeshake-dc42c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:913369745403:android:b89704a10d629a16",
+        "android_client_info": {
+          "package_name": "de.uni_weimar.benike.shakeshake"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "913369745403-1lcqp4eaftar6av5c290megikf666dll.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBijsduIXQF17goHFuANsmGac6Cw2xrx7M"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
