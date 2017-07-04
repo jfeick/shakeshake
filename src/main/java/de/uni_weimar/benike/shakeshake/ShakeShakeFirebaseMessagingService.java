@@ -33,8 +33,10 @@ public class ShakeShakeFirebaseMessagingService extends FirebaseMessagingService
         String body = data.get("body");
 
         //Calling method to generate notification
-        //sendNotification(remoteMessage.getNotification().getBody());
+        //sendNotification(remoteMessage.getNotification().getBody());(RefreshTask.REFRESH_DATA_INTENT));
         sendNotification(body);
+
+        sendBroadcast(new Intent(StateTransition.UPDATE_STATE));
     }
 
     //This method is only generating push notification

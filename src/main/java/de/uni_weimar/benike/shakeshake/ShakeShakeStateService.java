@@ -68,6 +68,8 @@ public class ShakeShakeStateService extends Service {
     private short triggerType;
     private String uuid;
 
+    private AccelerometerReader reader;
+
 
     static {
         isRunning = false;
@@ -194,5 +196,44 @@ public class ShakeShakeStateService extends Service {
         return null;
     }
 
+    /*public void loadOptions() {
+        this.reader = new AccelerometerReader(this);
+        this.periodTime = this.sharedPreferences.getLong(Constants.PREF_UPLOAD_PERIOD, -1);
+        if (this.periodTime > 0) {
+            this.lastStatus = false;
+            notifyNewStateTransition(new StreamingState(this, this.periodTime));
+            this.lastState = new TriggerState();
+        } else {
+            this.lastStatus = false;
+            notifyNewStateTransition(new SteadyState(this));
+            this.lastState = this.currentState;
+        }
+        int samplingRate = this.sharedPreferences.getInt(Constants.PREF_SENSOR_DELAY, Constants.PREF_SENSOR_DELAY_IN_MICRO_SEC);
+        if (samplingRate != 0) {
+            this.rate = (int) (1.0d / (((double) samplingRate) / 1000000.0d));
+        } else {
+            this.rate = MINIMUM_SAMPLEING_RATE;
+        }
+        this.appState.setSamplingRate(this.rate);
+        this.bufferTime = Integer.parseInt(this.sharedPreferences.getString(Constants.PREF_BUFFER_TIME, "120000"));
+        this.steadyTime = this.sharedPreferences.getInt(Constants.PREF_STEADY_TIME, Constants.STEADY_TIME);
+        this.streamingTime = this.sharedPreferences.getInt(Constants.PREF_STREAMING_TIME, Constants.STREAM_TIME);
+        this.deviceID = this.sharedPreferences.getInt(Constants.PROPERTY_DEVICE_ID, -1);
+        this.uuid = Utils.getDefaultDeviceUuid(getApplicationContext());
+        this.logicMode = this.sharedPreferences.getString(Constants.PREF_LOGIC, Constants.PREF_LOGIC_ANN);
+        if (this.logicMode.contentEquals(Constants.PREF_SERVICE_OPTION_JAVA)) {
+            this.logicAlgorithm = (short) 1;
+            this.triggerType = (short) 1;
+        } else if (this.logicMode.contentEquals(Constants.PREF_SERVICE_OPTION_NATIVE)) {
+            this.logicAlgorithm = (short) 2;
+            this.triggerType = (short) 2;
+        } else if (this.logicMode.contentEquals(Constants.PREF_LOGIC_ANN)) {
+            this.logicAlgorithm = (short) 3;
+            this.triggerType = (short) 3;
+            ANNLoader.getInstance().requestUpdate(this);
+        }
+        Log.d(TAG, "Trigger logic: " + this.logicAlgorithm);
+        this.threshold = this.sharedPreferences.getFloat(Constants.PREF_LOGIC_OPTION_STALTA_THRESHOLD, 15.0f);
+    }*/
 
 }
