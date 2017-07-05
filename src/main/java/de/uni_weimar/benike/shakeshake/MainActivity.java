@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.Sensor;
@@ -17,6 +18,7 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -47,8 +49,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         LocationListener {
 
     private static final String TAG = "MainActivity";
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 3;
-    private static final int PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 2;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private long periodTime;
     private Context context;
@@ -88,6 +89,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private TextView textState;
 
     private DecimalFormat decimalFormat;
+    private double lastKnownLatitude = 0.0;
+    private double lastKnownLongitude = 0.0;
+    private long lastTimestamp = 0;
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
@@ -126,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         accY0 = toground_rt(valY0, valY1, accY0, accY1);
         accZ0 = toground_rt(valZ0, valZ1, accZ0, accZ1);
 
-        long startTime = System.currentTimeMillis();
+
         annResult = this.ann.addAccelerometerReading(timestamp, this.accX0, this.accY0, this.accZ0);
 
         this.valX1 = this.valX0;
@@ -138,13 +142,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         this.pga = this.ann.getPGA();
 
         if(annResult != -1.0d) {
+
             //Log.d(TAG, String.format("ANN-Result: %f", annResult));
             double pga = ann.getPGA();
             //Log.d(TAG, String.format("PGA: %f", pga));
             textANNResult.setText(decimalFormat.format(annResult));
             textPGA.setText(decimalFormat.format(pga));
 
-            if(pga >= 12.0) {
+            if(pga >= 12.0 && Math.abs(timestamp - lastTimestamp) > 3000) {
+                lastTimestamp = timestamp;
                 notifyBackend();
                 switchToStreamingState();
             }
@@ -157,7 +163,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void notifyBackend() {
-
+        String token = PreferenceManager.getDefaultSharedPreferences(context).getString("TOKEN", "noTOKEN");
+        long timestamp = System.currentTimeMillis();
+        Backend.getInstance().registerActivity(token, timestamp, lastKnownLatitude, lastKnownLongitude);
     }
 
     private void switchToStreamingState() {
@@ -177,7 +185,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onLocationChanged(Location location) {
-
+        Log.d(TAG, "Location changed: " + location);
+        lastKnownLatitude = location.getLatitude();
+        lastKnownLongitude = location.getLongitude();
     }
 
     @Override
@@ -201,12 +211,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             if (intent.getAction().equals(StateTransition.UPDATE_STATE)) {
                 Log.d(TAG, "Received intent to update state");
                 String state = intent.getStringExtra("state");
-                if(state.equals("STREAMING")) {
-
+                if(state != null && state.equals("STREAMING")) {
+                    switchToStreamingState();
                 }
-                // Do stuff - maybe update my view based on the changed DB contents
+            }
+            if (intent.getAction().equals(StateTransition.TRIGGER)) {
+                Log.d(TAG, "Received intent to trigger");
+                switchToTrigger();
             }
         }
+    }
+
+    private void switchToTrigger() {
+        textState.setBackgroundColor(Color.RED);
+        textState.setText("TRIGGER");
     }
 
     @Override
@@ -233,11 +251,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if (this.context == null) {
             this.context = getApplicationContext();
         }
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
         textANNResult = (TextView)findViewById(R.id.textANNResult);
         textPGA = (TextView)findViewById(R.id.textPGA);
         textState = (TextView)findViewById(R.id.textState);
         textState.setBackgroundColor(Color.GREEN);
+        textState.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                resetTextState();
+            }
+        });
 
         // register for accelerometer events:
         sensorManager = (SensorManager) getApplicationContext()
@@ -248,6 +273,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         }
 
+        /*
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this,
                     new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE},
@@ -255,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
         else {
             // TODO: handle case
-        }
+        } */
 
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -310,6 +336,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         ann = new ANNImplV1(0);
     }
 
+    private void resetTextState() {
+        textState.setBackgroundColor(Color.GREEN);
+        textState.setText("preprocessing");
+    }
+
+
     private void cleanup() {
         // unregister with the orientation sensor before exiting:
         sensorManager.unregisterListener(this);
@@ -324,9 +356,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             ActivityCompat.requestPermissions(MainActivity.this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                     LOCATION_PERMISSION_REQUEST_CODE);
+            //startLocationServices();
         } else {
             // Access to the location has been granted to the app.
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 4.0f, this);
+            Location mobileLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if(mobileLocation != null) {
+                lastKnownLatitude = mobileLocation.getLatitude();
+                lastKnownLongitude = mobileLocation.getLongitude();
+            }
         }
     }
 
@@ -348,8 +386,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         editor.commit();
 
         if (stateTransitionReceiver == null) stateTransitionReceiver = new StateTransitionReceiver();
-        IntentFilter intentFilter = new IntentFilter(StateTransition.UPDATE_STATE);
-        registerReceiver(stateTransitionReceiver, intentFilter);
+        IntentFilter intentFilterState = new IntentFilter(StateTransition.UPDATE_STATE);
+        IntentFilter intentFilterTrigger = new IntentFilter(StateTransition.TRIGGER);
+        registerReceiver(stateTransitionReceiver, intentFilterState);
+        registerReceiver(stateTransitionReceiver, intentFilterTrigger);
 
         toggleServiceStatus(sharedPreferences.getBoolean(Constants.PREF_SERVICE_TOGGLE, true), 3);
     }
@@ -372,5 +412,27 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
+    boolean doubleBackToExitPressedOnce = false;
+
+    @Override
+    public void onBackPressed() {
+        if (doubleBackToExitPressedOnce) {
+            Toast.makeText(this, "Pressed twice!", Toast.LENGTH_SHORT).show();
+            super.onBackPressed();
+            finish();
+            return;
+        }
+
+        this.doubleBackToExitPressedOnce = true;
+        Toast.makeText(this, "Please click BACK again to exit", Toast.LENGTH_SHORT).show();
+
+        new Handler().postDelayed(new Runnable() {
+
+            @Override
+            public void run() {
+                doubleBackToExitPressedOnce=false;
+            }
+        }, 2000);
+    }
 }
 

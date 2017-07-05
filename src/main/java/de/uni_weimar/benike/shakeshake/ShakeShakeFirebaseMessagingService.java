@@ -39,6 +39,11 @@ public class ShakeShakeFirebaseMessagingService extends FirebaseMessagingService
         }
         if(type.equals("TRIGGER")) {
             Log.d(TAG, "Received TRIGGER message");
+            Intent intent = new Intent(StateTransition.TRIGGER);
+            String message = data.get("message");
+            intent.putExtra("message", message);
+            sendBroadcast(intent);
+            sendNotification(message);
         }
 
         //String title = data.get("title");
@@ -50,7 +55,6 @@ public class ShakeShakeFirebaseMessagingService extends FirebaseMessagingService
 
         //sendNotification(body);
 
-        sendBroadcast(new Intent(StateTransition.UPDATE_STATE));
     }
 
     //This method is only generating push notification
