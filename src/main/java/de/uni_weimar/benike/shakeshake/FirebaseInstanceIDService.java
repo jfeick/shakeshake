@@ -1,5 +1,6 @@
 package de.uni_weimar.benike.shakeshake;
 
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.google.firebase.iid.FirebaseInstanceId;
@@ -27,30 +28,13 @@ public class FirebaseInstanceIDService extends FirebaseInstanceIdService {
         Log.d(TAG, "Refreshed token: " + refreshedToken);
 
         // Send token to server and store locally
+        PreferenceManager.getDefaultSharedPreferences(getBaseContext())
+                .edit().putString("TOKEN", refreshedToken).apply();
+
         sendRegistrationToServer(refreshedToken);
     }
 
     private void sendRegistrationToServer(String token) {
-
-
-        XMLRPCCallback listener = new XMLRPCCallback() {
-            public void onResponse(long id, Object result) {
-                Log.d(TAG, "received response");
-            }
-            public void onError(long id, XMLRPCException error) {
-                Log.d(TAG, "received error");
-            }
-            public void onServerError(long id, XMLRPCServerException error) {
-                Log.d(TAG, "received server error");
-            }
-        };
-
-        try {
-            URL url = new URL("http://192.168.2.102:8000/RPC2");
-            XMLRPCClient client = new XMLRPCClient(url);
-            long id = client.callAsync(listener, "register_token", token);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
+        Backend.getInstance().registerToken(token);
     }
 }

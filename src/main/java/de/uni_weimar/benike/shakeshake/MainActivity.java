@@ -1,36 +1,209 @@
 package de.uni_weimar.benike.shakeshake;
 
+import android.*;
+import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.preference.PreferenceManager;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.androidplot.util.PlotStatistics;
+import com.androidplot.xy.BoundaryMode;
+import com.androidplot.xy.LineAndPointFormatter;
+import com.androidplot.xy.SimpleXYSeries;
+import com.androidplot.xy.XYPlot;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
 
 import de.timroes.axmlrpc.XMLRPCCallback;
 import de.timroes.axmlrpc.XMLRPCClient;
 import de.timroes.axmlrpc.XMLRPCException;
 import de.timroes.axmlrpc.XMLRPCServerException;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener,
+        LocationListener {
 
     private static final String TAG = "MainActivity";
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 3;
+    private static final int PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 2;
+
     private long periodTime;
     private Context context;
     private StateTransitionReceiver stateTransitionReceiver;
+    private SensorManager sensorManager;
+    private Sensor accelerometerSensor = null;
+
+    private LocationManager locationManager;
+    private int sampleRateUS = 40000;
+
+    private SimpleXYSeries accelerometerXSeries = null;
+    private SimpleXYSeries accelerometerYSeries = null;
+    private SimpleXYSeries accelerometerZSeries = null;
+    private SimpleXYSeries accelerometerMSeries = null;
+
+    private int mWindowSize = 200;
+    private XYPlot accelerometerPlot;
+    private ANNImplV1 ann;
+
+    float accX0;
+    float accX1;
+    float accY0;
+    float accY1;
+    float accZ0;
+    float accZ1;
+    double pga;
+    private long startingTimestamp;
+    float valX0;
+    float valX1;
+    float valY0;
+    float valY1;
+    float valZ0;
+    float valZ1;
+    private TextView textANNResult;
+    private TextView textPGA;
+
+    private TextView textState;
+
+    private DecimalFormat decimalFormat;
+
+    @Override
+    public void onSensorChanged(SensorEvent sensorEvent) {
+
+        // update instantaneous data:
+        Number[] series1Numbers = {sensorEvent.values[0], sensorEvent.values[1], sensorEvent.values[2]};
+
+
+        // get rid the oldest sample in history:
+        if (accelerometerXSeries.size() > mWindowSize - 1) {
+            accelerometerXSeries.removeFirst();
+            accelerometerYSeries.removeFirst();
+            accelerometerZSeries.removeFirst();
+            accelerometerMSeries.removeFirst();
+        }
+
+        // add the latest history sample:
+        final float accelXdata = sensorEvent.values[0];
+        final float accelYdata = sensorEvent.values[1];
+        final float accelZdata = sensorEvent.values[2];
+        accelerometerXSeries.addLast(null, accelXdata);
+        accelerometerYSeries.addLast(null, accelYdata);
+        accelerometerZSeries.addLast(null, accelZdata);
+        accelerometerMSeries.addLast(null, Math.sqrt(accelXdata * accelXdata
+                + accelYdata * accelYdata + accelZdata * accelZdata) /* - 9.81 */
+        );
+
+        //Log.d(TAG, "Sample added. Size of m series: " + mAccelerometerMSeries.size());
+
+        long timestamp = System.currentTimeMillis();
+        double annResult = -1.0d;
+        valX0 = accelXdata;
+        valY0 = accelYdata;
+        valZ0 = accelZdata;
+        accX0 = toground_rt(valX0, valX1, accX0, accX1);
+        accY0 = toground_rt(valY0, valY1, accY0, accY1);
+        accZ0 = toground_rt(valZ0, valZ1, accZ0, accZ1);
+
+        long startTime = System.currentTimeMillis();
+        annResult = this.ann.addAccelerometerReading(timestamp, this.accX0, this.accY0, this.accZ0);
+
+        this.valX1 = this.valX0;
+        this.valY1 = this.valY0;
+        this.valZ1 = this.valZ0;
+        this.accX1 = this.accX0;
+        this.accY1 = this.accY0;
+        this.accZ1 = this.accZ0;
+        this.pga = this.ann.getPGA();
+
+        if(annResult != -1.0d) {
+            //Log.d(TAG, String.format("ANN-Result: %f", annResult));
+            double pga = ann.getPGA();
+            //Log.d(TAG, String.format("PGA: %f", pga));
+            textANNResult.setText(decimalFormat.format(annResult));
+            textPGA.setText(decimalFormat.format(pga));
+
+            if(pga >= 12.0) {
+                notifyBackend();
+                switchToStreamingState();
+            }
+        }
+
+        // redraw the Plots
+        accelerometerPlot.redraw();
+
+
+    }
+
+    private void notifyBackend() {
+
+    }
+
+    private void switchToStreamingState() {
+        textState.setBackgroundColor(Color.YELLOW);
+        textState.setText("streaming");
+    }
+
+    private float toground_rt(float x0, float x1, float a0, float a1) {
+        return ((x0 - x1) / 1.1111112f) + (0.8f * a1);
+    }
+
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
 
     private class StateTransitionReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(StateTransition.UPDATE_STATE)) {
                 Log.d(TAG, "Received intent to update state");
+                String state = intent.getStringExtra("state");
+                if(state.equals("STREAMING")) {
+
+                }
                 // Do stuff - maybe update my view based on the changed DB contents
             }
         }
@@ -38,11 +211,131 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        this.accX0 = 0.0f;
+        this.accX1 = 0.0f;
+        this.accY0 = 0.0f;
+        this.accY1 = 0.0f;
+        this.accZ0 = 0.0f;
+        this.accZ1 = 0.0f;
+        this.valX0 = 0.0f;
+        this.valX1 = 0.0f;
+        this.valY0 = 0.0f;
+        this.valY1 = 0.0f;
+        this.valZ0 = 0.0f;
+        this.valZ1 = 0.0f;
+        this.pga = 0.0d;
+
+        decimalFormat = new DecimalFormat("#.#######");
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         if (this.context == null) {
             this.context = getApplicationContext();
         }
+
+        textANNResult = (TextView)findViewById(R.id.textANNResult);
+        textPGA = (TextView)findViewById(R.id.textPGA);
+        textState = (TextView)findViewById(R.id.textState);
+        textState.setBackgroundColor(Color.GREEN);
+
+        // register for accelerometer events:
+        sensorManager = (SensorManager) getApplicationContext()
+                .getSystemService(Context.SENSOR_SERVICE);
+        for (Sensor sensor : sensorManager.getSensorList(Sensor.TYPE_ACCELEROMETER)) {
+            if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                accelerometerSensor = sensor;
+            }
+        }
+
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE},
+                    PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
+        }
+        else {
+            // TODO: handle case
+        }
+
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        startLocationServices();
+
+        // if we can't access the accelerometer sensor then exit:
+        if (accelerometerSensor == null) {
+            Log.e(TAG, "Failed to attach to Accelerator Sensor.");
+            Toast.makeText(this, "Error! Failed to create accelerometer sensor!", Toast.LENGTH_LONG)
+                    .show();
+            cleanup();
+        }
+
+        changeSampleRate(sampleRateUS);
+        accelerometerPlot = (XYPlot) findViewById(R.id.accelerometerPlot);
+        accelerometerPlot.setRangeBoundaries(-15, 15, BoundaryMode.FIXED);
+        accelerometerPlot.setDomainBoundaries(0, mWindowSize - 1, BoundaryMode.FIXED);
+
+
+        accelerometerXSeries = new SimpleXYSeries("X");
+        accelerometerXSeries.useImplicitXVals();
+        accelerometerYSeries = new SimpleXYSeries("Y");
+        accelerometerYSeries.useImplicitXVals();
+        accelerometerZSeries = new SimpleXYSeries("Z");
+        accelerometerZSeries.useImplicitXVals();
+        accelerometerMSeries = new SimpleXYSeries("magnitude");
+        accelerometerMSeries.useImplicitXVals();
+
+
+
+        accelerometerPlot.addSeries(accelerometerXSeries,
+                new LineAndPointFormatter(Color.rgb(100, 100, 200), null, null, null));
+        accelerometerPlot.addSeries(accelerometerYSeries,
+                new LineAndPointFormatter(Color.rgb(100, 200, 100), null, null, null));
+        accelerometerPlot.addSeries(accelerometerZSeries,
+                new LineAndPointFormatter(Color.rgb(200, 100, 100), null, null, null));
+        accelerometerPlot.addSeries(accelerometerMSeries,
+                new LineAndPointFormatter(Color.rgb(0, 0, 0), null, null, null));
+        accelerometerPlot.setDomainStepValue(5);
+        accelerometerPlot.setTicksPerRangeLabel(3);
+        accelerometerPlot.setDomainLabel("Sample Index");
+        accelerometerPlot.getDomainLabelWidget().pack();
+        accelerometerPlot.setRangeLabel("m/s^2");
+        accelerometerPlot.getRangeLabelWidget().pack();
+
+        final PlotStatistics histStats = new PlotStatistics(1000, false);
+        accelerometerPlot.addListener(histStats);
+
+        // perform hardware accelerated rendering of the plots
+        accelerometerPlot.setLayerType(View.LAYER_TYPE_NONE, null);
+
+        ann = new ANNImplV1(0);
+    }
+
+    private void cleanup() {
+        // unregister with the orientation sensor before exiting:
+        sensorManager.unregisterListener(this);
+        locationManager.removeUpdates(this);
+    }
+
+
+    private void startLocationServices() {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission to access the4 location is missing.
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST_CODE);
+        } else {
+            // Access to the location has been granted to the app.
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 4.0f, this);
+        }
+    }
+
+
+    public void changeSampleRate(int us) {
+        sampleRateUS = us;
+        Log.d(TAG, "Samplerate value: " + us);
+        sensorManager.unregisterListener(this);
+        sensorManager.registerListener(this, accelerometerSensor, us);
     }
 
 
@@ -59,26 +352,6 @@ public class MainActivity extends AppCompatActivity {
         registerReceiver(stateTransitionReceiver, intentFilter);
 
         toggleServiceStatus(sharedPreferences.getBoolean(Constants.PREF_SERVICE_TOGGLE, true), 3);
-
-        XMLRPCCallback listener = new XMLRPCCallback() {
-            public void onResponse(long id, Object result) {
-                Log.d(TAG, "received response");
-            }
-            public void onError(long id, XMLRPCException error) {
-                Log.d(TAG, "received error");
-            }
-            public void onServerError(long id, XMLRPCServerException error) {
-                Log.d(TAG, "received server error");
-            }
-        };
-
-        try {
-            URL url = new URL("http://192.168.2.102:8000/RPC2");
-            XMLRPCClient client = new XMLRPCClient(url);
-            long id = client.callAsync(listener, "add", 5, 10);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override

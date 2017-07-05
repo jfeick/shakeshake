@@ -29,12 +29,26 @@ public class ShakeShakeFirebaseMessagingService extends FirebaseMessagingService
         //Log.d(TAG, "Notification Message Body: " + remoteMessage.getNotification().getBody());
 
         Map<String, String> data = remoteMessage.getData();
-        String title = data.get("title");
-        String body = data.get("body");
+        String type = data.get("type");
+        if(type.equals("STATEUPDATE")) {
+            Log.d(TAG, "Received STATEUPDATE message");
+            Intent intent = new Intent(StateTransition.UPDATE_STATE);
+            String state = data.get("state");
+            intent.putExtra("state", state);
+            sendBroadcast(intent);
+        }
+        if(type.equals("TRIGGER")) {
+            Log.d(TAG, "Received TRIGGER message");
+        }
+
+        //String title = data.get("title");
+        //String body = data.get("body");
+
 
         //Calling method to generate notification
-        //sendNotification(remoteMessage.getNotification().getBody());(RefreshTask.REFRESH_DATA_INTENT));
-        sendNotification(body);
+        ////sendNotification(remoteMessage.getNotification().getBody());(RefreshTask.REFRESH_DATA_INTENT));
+
+        //sendNotification(body);
 
         sendBroadcast(new Intent(StateTransition.UPDATE_STATE));
     }
