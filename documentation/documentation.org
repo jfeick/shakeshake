@@ -1,0 +1,19 @@
+#+TITLE: MIS Project Documentation
+#+AUTHOR: Jan Frederick Eick, Benjamin Burse
+#+OPTIONS: toc:nil
+
+* Introduction
+* Implementation
+** Original implementation
+** Frontend
+*** Reverse engineering the ANN classifier
+*** Possible approach without ANNs
+
+** Backend
+   - Python
+   - XMLRPC
+
+** Libraries used
+* Results
+** What we achieved
+** What we did not achieve
