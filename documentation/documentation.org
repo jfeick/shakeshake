@@ -3,6 +3,21 @@
 #+OPTIONS: toc:nil
 
 * Introduction
+In their paper "MyShake: A smartphone seismic network for earthquake early
+  warning and beyond" the authors are discribing how many countries in the
+  world are still suffering from insufficient to no earthquake prewarning at
+  all. The consequences are thousands of people still dying in earthquakes
+  every year. There approach to the problem was the validation and
+  implementation of a low cost, highly available prewarning system based
+  on modern smartphones and mobile wireless communication. The idea was to
+  develop a smartphone application which makes use of the already built-in
+  accelerometer of smart devices, to detect earthquakes. In case of a
+  positive detection, a short message with all relevant data is sent over to
+  a server. The servers task is to collect all data sent from the mobile
+  devices and decide, based on the number of occurrences, if a real
+  earthquake is on the way. After an earthquake is being detected, the server
+  notifies all users in the region.
+
 * Implementation
 ** Original implementation
 ** Frontend
@@ -16,4 +31,26 @@
 ** Libraries used
 * Results
 ** What we achieved
+   With our implementation we were able to set up a working front- and
+   backend. As already described, the frontend collects the earthquake data and the
+   backend does the registration of unique devices, evaluation and
+   notification. We were able to detect a possible earthquakes on a device
+   and process the received information on the server side. Afterwards we
+   were also able to notify all registered
+   devices of a possible earthquake via googles FCM API (Firebase Cloud
+   Messaging, successor of GCM - Google Cloud Messaging).
+
 ** What we did not achieve
+   As also already explained, the original implementation of the application
+   used an ANN classifier (Artifical Neuronal Network) to separate real
+   earthquakes from other events like hitting the table. We were not able to
+   construct an ANN on our own, because of the lack of access and
+   understanding of real earthquake data. We first tried to use a kind of
+   activity detection as a classifier, with very bad results, but then switched over to the
+   reverse engineered ANN classifier of the authors.
+
+   In difference to the original backend, which was able to calculate the
+   center and spread direction of the earthquake, our backend is limited to a
+   very basic data analysis (via threshold) and notification functionality.
+   This could be a possible point for further development.
+   and notification
