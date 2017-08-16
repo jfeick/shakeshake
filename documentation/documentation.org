@@ -99,13 +99,46 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
          }
      }
    #+END_SRC
-   
+   We decided to intercept the traffic of the mobile app using
+   [[https://portswigger.net/burp/][Portswigger Burp Suite]] and tried to find out if the Application is updating
+   its ANN. During a two day observation phase we could not detect any activity
+   of the application to update the ANN.
+  
+   Our implementation used the ANN output and additionally calculated the peak
+   ground acceleration to detect local seismic events. For demonstration purpose
+   we chose very low thresholds of output certainty and used a low threshold for
+   the PGA to trigger network events to the backend. 
+   As soon as the thresholds are reached the state of the application is changed 
+   to the =StreamingState=. In our demonstration we did not actually stream
+   sensor data to the backend. 
+
+   In case of a received earth quake warning, we display an alert by using a
+   notification with the highest possible priority and play a warning tone.
    
 ** Backend
-   - Python
-   - XMLRPC
+   Our implementation of the backend was done using Python 2.7.
+   We chose an XMLRPC interface for the task at hand using the
+   =SimpleXMLRPCServer= module of Python's standard library. 
+   We used a very simple algorithm to determine the trigger of an earth quake
+   warning by setting a low threshold of the number of devices that reported a
+   seismic event in a timeframe of 10 seconds.
+   We notify the mobile clients using the =Firebase Cloud Messaging= service
+   from google.
+   The backend can decide to notify clients in proximity of another seismic
+   event to switch to the =StreamingState=, or it can issue an actual earth
+   quake warning.
 
-** Libraries used
+** Libraries
+   On the client we used the following libraries:
+   - [[http://androidplot.com/][androidplot]] for the plotting of the sensor data
+   - [[https://developer.android.com/topic/libraries/support-library/packages.html][Google Support Library]] (v7 appcompat, constraint-layout, design)
+   - [[https://firebase.google.com/docs/cloud-messaging/][Firebase Cloud Messaging]] to receive push notifications from the backend
+   - [[https://github.com/gturri/aXMLRPC][aXMLRPC]] for the communication with the XMLRPC backend server
+
+   On the backend we used:
+   - [[https://docs.python.org/2/library/simplexmlrpcserver.html][SimpleXMLRPCServer]]
+   - [[https://github.com/olucurious/PyFCM][PyFCM]] to send push notifications using the FCM service
+
 * Results
 ** What we achieved
    With our implementation we were able to set up a working front- and
