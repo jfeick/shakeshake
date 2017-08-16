@@ -46,9 +46,61 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
    seismic event. 
    
 ** Mobile Application
-*** Reverse engineering the ANN classifier
-*** Possible approach without ANNs
+   The heart of the application is a reliable classifier for the sensor data.
+   Our initial approach was to rebuild the ANN using training data from our own
+   phones and manually inducing shocks to a table and shaking it. We
+   experimented with [[https://github.com/tensorflow/tensorflow][TensorFlow]] and [[https://github.com/itdxer/neupy][NeuPy]] to train a model with rougly 80 sensor
+   readings of different sampling rates. After testing our classifier on new
+   data it demonstrated subpar performance for our application.
+   
+   We experimented with a different approach of performing a fast fourier
+   transformation on the signal data and tried to find a threshold of high
+   frequencies for which we would detect a potential seismic event.
+   Unfortunately this approach would need a much bigger sampling rate of the
+   accelerometer sensor, which we deliberately tried to avoid to not put too
+   much strain on the battery. With our desired sampling rate of 25 Hz we were
+   unable to identify high frequencies of shakes which are characteristic for
+   seismic events.
 
+   After several failed attempts to recreate a reliable local classifier we
+   decided to try to reverse engineer the MyShake APK using
+   [[https://github.com/skylot/jadx][JADX - Dex to Java Decompiler]]. The Java code was not obsfuscated and we
+   quickly identified the class =com.dt.myshake.algorithms.ann.ANNImplV1= as the
+   ANN used by the original authors.
+   The class contained hardcoded values for the feature scales, intercepts for
+   the first layer of the network, the intercept for the first hidden layer and
+   weights.
+   With very little adjustments we were able to use the code of the original
+   authors.
+   Further investigation of the reversed source code revealed that the
+   application is using a very interesting mechanism to update this ANN without
+   relying on a complete update of the APK. 
+   In the class =com.dt.myshake.service.ann.ANNLoader= the method
+   =downloadAndStoreNewClass(Context context)= is used to download a new
+   JAR-File from the server of the authors. The file is stored in the system
+   data directory and later with the method =loadNewClass(Context context)=
+   converted to a dex.
+   #+BEGIN_SRC java
+     private boolean loadNewClass(Context context) {
+         ...
+         try {
+             File f = context.getDir("/outdex", 0);
+             ...
+             String receivedJarPath = "ANNImplV" + this.latestANNVersion;
+             this.loadedDetectionAlgorithmClass = 
+                           new DexClassLoader(f.getAbsolutePath() \
+                             + "/" + receivedJarPath, f.getAbsolutePath(), null, \
+                           getClass().getClassLoader())
+                           .loadClass("com.dt.service.ann.algorithms." 
+                             + receivedJarPath);
+             return true;
+         } catch (Exception e) {
+             ...
+         }
+     }
+   #+END_SRC
+   
+   
 ** Backend
    - Python
    - XMLRPC
