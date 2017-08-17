@@ -25,12 +25,12 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
    The authors of MyShake designed the application in a way that it constantly
    records accelerometer sensor data using a background service. These sensor
    readings are stored in a circular buffer which holds 250 sensor samples in
-   the default settings. (25 Hertz for 10 seconds) With each new updated sensor
+   the default settings (25 Hertz for 10 seconds). With each new updated sensor
    reading three features of the signal are calculated:
    1. The interquartile range
    2. The maximum zero-crossing rate
    3. The cumulative absolute velocity of the acceleration vector sum
-   These features are used as inputs to a trained artificial neural network
+   These features are used as inputs to a trained Artificial Neural Network
    which classifies the sensor data. If the output reaches a threshold of 0.9,
    the state of the application is changed to "streaming" and the application
    starts streaming measurement data to the server. 
@@ -166,4 +166,3 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
    center and spread direction of the earthquake, our backend is limited to a
    very basic data analysis (via threshold) and notification functionality.
    This could be a possible point for further development.
-   and notification
