@@ -3,9 +3,8 @@
 #+OPTIONS: toc:nil
 #+LaTeX_CLASS_OPTIONS: [koma,letterpaper,utopia,11pt,listings-es,microtype,paralist,colorlinks=true,urlcolor=blue,secnums]
 
-
 * Introduction
-In their paper "MyShake: A smartphone seismic network for earthquake early
+  In their paper "MyShake: A smartphone seismic network for earthquake early
   warning and beyond" the authors are discribing how many countries in the
   world are still suffering from insufficient to no earthquake prewarning at
   all. The consequences are thousands of people still dying in earthquakes
@@ -82,6 +81,7 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
    JAR-File from the server of the authors. The file is stored in the system
    data directory and later with the method =loadNewClass(Context context)=
    converted to a dex.
+   
    #+BEGIN_SRC java
      private boolean loadNewClass(Context context) {
          ...
