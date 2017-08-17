@@ -1,6 +1,8 @@
 #+TITLE: MIS Project Documentation
 #+AUTHOR: Jan Frederick Eick, Benjamin Burse
 #+OPTIONS: toc:nil
+#+LaTeX_CLASS_OPTIONS: [koma,letterpaper,utopia,11pt,listings-es,microtype,paralist,colorlinks=true,urlcolor=blue,secnums]
+
 
 * Introduction
 In their paper "MyShake: A smartphone seismic network for earthquake early
@@ -88,11 +90,11 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
              ...
              String receivedJarPath = "ANNImplV" + this.latestANNVersion;
              this.loadedDetectionAlgorithmClass = 
-                           new DexClassLoader(f.getAbsolutePath() \
-                             + "/" + receivedJarPath, f.getAbsolutePath(), null, \
-                           getClass().getClassLoader())
-                           .loadClass("com.dt.service.ann.algorithms." 
-                             + receivedJarPath);
+                           new DexClassLoader(f.getAbsolutePath()
+                             + "/" + receivedJarPath, f.getAbsolutePath(), 
+                             null, getClass().getClassLoader())
+                               .loadClass("com.dt.service.ann.algorithms." 
+                                  + receivedJarPath);
              return true;
          } catch (Exception e) {
              ...
@@ -100,7 +102,7 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
      }
    #+END_SRC
    We decided to intercept the traffic of the mobile app using
-   [[https://portswigger.net/burp/][Portswigger Burp Suite]] and tried to find out if the Application is updating
+   [[https://portswigger.net/burp/][Portswigger Burp Suite]] and tried to find out if the application is updating
    its ANN. During a two day observation phase we could not detect any activity
    of the application to update the ANN.
   
@@ -134,6 +136,7 @@ In their paper "MyShake: A smartphone seismic network for earthquake early
    - [[https://developer.android.com/topic/libraries/support-library/packages.html][Google Support Library]] (v7 appcompat, constraint-layout, design)
    - [[https://firebase.google.com/docs/cloud-messaging/][Firebase Cloud Messaging]] to receive push notifications from the backend
    - [[https://github.com/gturri/aXMLRPC][aXMLRPC]] for the communication with the XMLRPC backend server
+
 
    On the backend we used:
    - [[https://docs.python.org/2/library/simplexmlrpcserver.html][SimpleXMLRPCServer]]
